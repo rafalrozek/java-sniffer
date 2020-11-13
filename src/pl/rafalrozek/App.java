@@ -7,6 +7,7 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 import pl.rafalrozek.Sniff.SniffWindow;
@@ -23,8 +24,11 @@ public class App extends Application {
         AppControler ctrl = loader.getController();
         Platform.setImplicitExit(false);
 
+
         primaryStage.setTitle("Sniffer");
-        primaryStage.setScene(new Scene(root, 300, 200));
+        primaryStage.setScene(new Scene(root, 250, 100));
+        primaryStage.getIcons().add(new Image(App.class.getResourceAsStream("hb.png")));
+        primaryStage.setResizable(false);
         primaryStage.show();
 
         //read all devices
@@ -35,8 +39,8 @@ public class App extends Application {
             @Override
             public void handle(ActionEvent event) {
                 String deviceListValue = ctrl.getdeviceListValue();
-                SniffWindow sw = new SniffWindow(deviceListValue);
-
+                if(deviceListValue.compareTo("") != 0)
+                    new SniffWindow(deviceListValue);
             }
         });
 

@@ -1,54 +1,55 @@
 package pl.rafalrozek.Sniff;
 
-import org.jnetpcap.Pcap;
-import org.jnetpcap.packet.PcapPacket;
-import org.jnetpcap.packet.PcapPacketHandler;
-import org.jnetpcap.protocol.network.Ip4;
+
+import org.pcap4j.core.*;
+import org.pcap4j.packet.IpV4Packet;
+
+import java.net.Inet4Address;
 
 public class SniffThread extends Thread{
     String deviceName;
-    public Pcap pcap;
-    public SniffThread(String deviceName) {
+    SniffControler ctrl;
+    public PcapHandle handle;
+
+    public SniffThread(String deviceName, SniffControler ctrl) {
         this.deviceName = deviceName;
+        this.ctrl = ctrl;
     }
 
     @Override
     public void run() {
-        StringBuilder errbuf = new StringBuilder(); // For any error msgs
-        int snaplen = 64 * 1024;                    // Capture all packets, no trucation
-        int flags = Pcap.MODE_PROMISCUOUS;          // capture all packets
-        int timeout = 0;                            // 10 seconds in millis
-        pcap = Pcap.openLive(deviceName, snaplen, flags, timeout, errbuf);
+        PcapNetworkInterface nif = null;
+        try {
+            nif = Pcaps.getDevByName(deviceName);
 
-        if (pcap == null) {
-            System.err.printf("Error while opening device for capture: ");
-            return;
-        }
-        System.out.println("Started device " + deviceName);
-        PcapPacketHandler<String> jpacketHandler = new PcapPacketHandler<String>() {
-            public void nextPacket(PcapPacket packet, String user) {
-                //System.out.println("NEW: "+packet.getState().toDebugString()); //debug
-                Ip4 ip = new Ip4();
-                byte[] sIP = new byte[4];
-                byte[] dIP = new byte[4];
-                String sourceIP = "";
-                String destIP = "";
-                if(packet.hasHeader(ip)){
-                    sIP = packet.getHeader(ip).source();
-                    sourceIP = org.jnetpcap.packet.format.FormatUtils.ip(sIP);
-                    dIP = packet.getHeader(ip).destination();
-                    destIP = org.jnetpcap.packet.format.FormatUtils.ip(dIP);
-                    /*
-                    TODO:
-                        print out to listview?
-                     */
-                    System.out.println(sourceIP + "->" + destIP);
+        int snapLen = 65536;
+        PcapNetworkInterface.PromiscuousMode mode = PcapNetworkInterface.PromiscuousMode.PROMISCUOUS;
+        int timeout = 100;
+        handle = nif.openLive(snapLen, mode, timeout);
 
+
+        handle.loop(0, new PacketListener() {
+            @Override
+            public void gotPacket(PcapPacket packet) {
+                IpV4Packet ipV4Packet = packet.get(IpV4Packet.class);
+                if(ipV4Packet != null){
+                    Inet4Address srcAddr = ipV4Packet.getHeader().getSrcAddr();
+                    Inet4Address destAddr = ipV4Packet.getHeader().getDstAddr();
+
+                    ctrl.addPacket(srcAddr.toString(), destAddr.toString());
                 }
+
             }
-        };
-        //0 -> infinite loop
-        pcap.loop(0, jpacketHandler, "jNetPcap not rocks!");
+        });
+        handle.close();
+
+        } catch (InterruptedException ex) {
+            //everything is ok..
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
+
 
 
     }
